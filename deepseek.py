@@ -16,23 +16,120 @@ class EnhancedPoint:
     def __repr__(self):
         return f"({self.x:.1f}, {self.y:.1f})"
 
+class RoundedButton(tk.Canvas):
+    def __init__(self, parent, text, command, width=100, height=30, radius=8,
+                 bg_color="#0066cc", hover_color="#0055aa", text_color="white",
+                 border_width=0, font=("Arial", 10), **kwargs):
+        super().__init__(parent, width=width, height=height, 
+                        highlightthickness=0, **kwargs)
+        self.command = command
+        self.bg_color = bg_color
+        self.hover_color = hover_color
+        self.text_color = text_color
+        self.radius = radius
+        self.border_width = border_width
+        self.font = font
+        self.text = text
+        self.width = width
+        self.height = height
+        
+        self.bind("<Enter>", self.on_enter)
+        self.bind("<Leave>", self.on_leave)
+        self.bind("<Button-1>", self.on_click)
+        self.bind("<ButtonRelease-1>", self.on_release)
+        
+        self.is_hovered = False
+        self.is_pressed = False
+        self.draw_button()
+    
+    def draw_button(self):
+        self.delete("all")
+        
+        # Draw rounded rectangle
+        if self.is_pressed:
+            color = self.hover_color
+        elif self.is_hovered:
+            color = self.hover_color
+        else:
+            color = self.bg_color
+            
+        # Create rounded rectangle
+        self.create_round_rect(0, 0, self.width, self.height, 
+                              self.radius, fill=color, outline=color)
+        
+        # Add text
+        self.create_text(self.width//2, self.height//2, 
+                        text=self.text, fill=self.text_color,
+                        font=self.font, tags="text")
+    
+    def create_round_rect(self, x1, y1, x2, y2, radius, **kwargs):
+        points = [
+            x1+radius, y1,
+            x2-radius, y1,
+            x2, y1,
+            x2, y1+radius,
+            x2, y2-radius,
+            x2, y2,
+            x2-radius, y2,
+            x1+radius, y2,
+            x1, y2,
+            x1, y2-radius,
+            x1, y1+radius,
+            x1, y1,
+            x1+radius, y1
+        ]
+        return self.create_polygon(points, smooth=True, **kwargs)
+    
+    def on_enter(self, event):
+        self.is_hovered = True
+        self.draw_button()
+    
+    def on_leave(self, event):
+        self.is_hovered = False
+        self.is_pressed = False
+        self.draw_button()
+    
+    def on_click(self, event):
+        self.is_pressed = True
+        self.draw_button()
+    
+    def on_release(self, event):
+        self.is_pressed = False
+        self.draw_button()
+        if self.command:
+            self.command()
+
+class StyledButton(ttk.Button):
+    def __init__(self, parent, text, command, style_name="", **kwargs):
+        super().__init__(parent, text=text, command=command, **kwargs)
+        self.configure(style=f"{style_name}.TButton" if style_name else "TButton")
+
 class EnhancedClosestPairVisualizer:
     def __init__(self, root):
         self.root = root
         self.root.title("Closest Pair Visualizer")
         self.root.geometry("1100x700")
         
-        # Simple color scheme
+        # Color scheme with hover colors
         self.theme = {
-            "bg": "#f0f0f0",
-            "fg": "#000000",
-            "accent": "#0066cc",
-            "secondary": "#3399ff",
-            "danger": "#cc0000",
-            "success": "#009933",
-            "warning": "#ff9900",
+            "bg": "#f5f7fa",
+            "fg": "#2c3e50",
+            "accent": "#3498db",
+            "accent_hover": "#2980b9",
+            "secondary": "#2ecc71",
+            "secondary_hover": "#27ae60",
+            "danger": "#e74c3c",
+            "danger_hover": "#c0392b",
+            "warning": "#f39c12",
+            "warning_hover": "#d68910",
+            "success": "#27ae60",
+            "success_hover": "#219653",
+            "info": "#9b59b6",
+            "info_hover": "#8e44ad",
             "canvas_bg": "#ffffff",
-            "grid": "#e0e0e0"
+            "grid": "#e8edf2",
+            "panel_bg": "#ffffff",
+            "border": "#dfe6e9"
         }
 
         # Points storage
@@ -52,11 +149,115 @@ class EnhancedClosestPairVisualizer:
         self.highlighted_points = []
         self.active_comparisons = []
 
+        self.setup_styles()
         self.setup_ui()
 
+    def setup_styles(self):
+        style = ttk.Style()
+        
+        # Configure button styles with rounded corners
+        style.configure("Accent.TButton",
+                       background=self.theme["accent"],
+                       foreground="white",
+                       borderwidth=0,
+                       focuscolor="none",
+                       focusthickness=0,
+                       font=("Arial", 10, "bold"),
+                       padding=8,
+                       relief="flat")
+        style.map("Accent.TButton",
+                 background=[('active', self.theme["accent_hover"]),
+                            ('pressed', self.theme["accent_hover"]),
+                            ('!disabled', self.theme["accent"])],
+                 foreground=[('!disabled', 'white')],
+                 relief=[('pressed', 'sunken'),
+                        ('!pressed', 'flat')])
+        
+        style.configure("Success.TButton",
+                       background=self.theme["success"],
+                       foreground="white",
+                       borderwidth=0,
+                       focuscolor="none",
+                       font=("Arial", 10, "bold"),
+                       padding=8,
+                       relief="flat")
+        style.map("Success.TButton",
+                 background=[('active', self.theme["success_hover"]),
+                            ('pressed', self.theme["success_hover"]),
+                            ('!disabled', self.theme["success"])],
+                 foreground=[('!disabled', 'white')])
+        
+        style.configure("Warning.TButton",
+                       background=self.theme["warning"],
+                       foreground="white",
+                       borderwidth=0,
+                       focuscolor="none",
+                       font=("Arial", 10, "bold"),
+                       padding=8,
+                       relief="flat")
+        style.map("Warning.TButton",
+                 background=[('active', self.theme["warning_hover"]),
+                            ('pressed', self.theme["warning_hover"]),
+                            ('!disabled', self.theme["warning"])],
+                 foreground=[('!disabled', 'white')])
+        
+        style.configure("Danger.TButton",
+                       background=self.theme["danger"],
+                       foreground="white",
+                       borderwidth=0,
+                       focuscolor="none",
+                       font=("Arial", 10, "bold"),
+                       padding=8,
+                       relief="flat")
+        style.map("Danger.TButton",
+                 background=[('active', self.theme["danger_hover"]),
+                            ('pressed', self.theme["danger_hover"]),
+                            ('!disabled', self.theme["danger"])],
+                 foreground=[('!disabled', 'white')])
+        
+        style.configure("Info.TButton",
+                       background=self.theme["info"],
+                       foreground="white",
+                       borderwidth=0,
+                       focuscolor="none",
+                       font=("Arial", 10, "bold"),
+                       padding=8,
+                       relief="flat")
+        style.map("Info.TButton",
+                 background=[('active', self.theme["info_hover"]),
+                            ('pressed', self.theme["info_hover"]),
+                            ('!disabled', self.theme["info"])],
+                 foreground=[('!disabled', 'white')])
+        
+        # Configure other widget styles
+        style.configure("TFrame", background=self.theme["bg"])
+        style.configure("Header.TFrame", background=self.theme["bg"])
+        style.configure("Header.TLabel", background=self.theme["bg"], 
+                       foreground=self.theme["fg"], font=("Arial", 18, "bold"))
+        style.configure("Subtitle.TLabel", background=self.theme["bg"],
+                       foreground="#7f8c8d", font=("Arial", 10))
+        
+        style.configure("Panel.TFrame", background=self.theme["panel_bg"],
+                       relief="solid", borderwidth=1)
+        style.configure("Panel.TLabelframe", background=self.theme["panel_bg"],
+                       relief="solid", borderwidth=1)
+        style.configure("Panel.TLabelframe.Label", background=self.theme["panel_bg"],
+                       foreground=self.theme["fg"], font=("Arial", 11, "bold"))
+        
+        # Progress bar style
+        style.configure("Custom.Horizontal.TProgressbar",
+                       troughcolor=self.theme["grid"],
+                       background=self.theme["accent"],
+                       bordercolor=self.theme["border"],
+                       lightcolor=self.theme["accent_hover"],
+                       borderwidth=1)
+
     def setup_ui(self):
+        # Configure root background
+        self.root.configure(bg=self.theme["bg"])
+        
         # Main container
-        main_frame = ttk.Frame(self.root, padding="10")
+        main_frame = ttk.Frame(self.root, padding="15")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
         # Configure grid weights
@@ -66,20 +267,22 @@ class EnhancedClosestPairVisualizer:
         main_frame.rowconfigure(0, weight=1)
 
         # Header
-        header_frame = ttk.Frame(main_frame)
-        header_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+        header_frame = ttk.Frame(main_frame, style="Header.TFrame")
+        header_frame.grid(row=0, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 15))
+        
         title_label = ttk.Label(header_frame,
                                text="Closest Pair of Points Visualizer",
-                               font=("Arial", 18, "bold"))
+                               style="Header.TLabel")
         title_label.pack()
+        
         subtitle_label = ttk.Label(header_frame,
                                   text="Divide & Conquer Algorithm - O(n log n)",
-                                  font=("Arial", 10))
+                                  style="Subtitle.TLabel")
         subtitle_label.pack()
 
         # Left panel - Controls
-        left_panel = ttk.Frame(main_frame, relief=tk.RIDGE, borderwidth=2, padding="5")
-        left_panel.grid(row=1, column=0, sticky=(tk.N, tk.S), padx=(0, 5))
+        left_panel = ttk.Frame(main_frame, style="Panel.TFrame", padding="10")
+        left_panel.grid(row=1, column=0, sticky=(tk.N, tk.S), padx=(0, 10))
 
         # Control sections
         self.create_point_controls(left_panel)
@@ -87,22 +290,29 @@ class EnhancedClosestPairVisualizer:
         self.create_algorithm_info(left_panel)
 
         # Canvas area
-        canvas_container = ttk.Frame(main_frame, relief=tk.RIDGE, borderwidth=2, padding="5")
+        canvas_container = ttk.Frame(main_frame, style="Panel.TFrame", padding="10")
         canvas_container.grid(row=1, column=1, sticky=(tk.W, tk.E, tk.N, tk.S))
 
         # Canvas header
         canvas_header = ttk.Frame(canvas_container)
-        canvas_header.pack(fill=tk.X, pady=(0, 5))
+        canvas_header.pack(fill=tk.X, pady=(0, 10))
+        
         ttk.Label(canvas_header, text="Point Canvas",
-                 font=("Arial", 12)).pack(side=tk.LEFT)
-        self.canvas_status = ttk.Label(canvas_header, text="Ready")
+                 font=("Arial", 12, "bold"),
+                 foreground=self.theme["fg"]).pack(side=tk.LEFT)
+        
+        self.canvas_status = ttk.Label(canvas_header,
+                                      text="Ready",
+                                      foreground=self.theme["success"],
+                                      font=("Arial", 10))
         self.canvas_status.pack(side=tk.RIGHT)
 
         # Canvas
         self.canvas = tk.Canvas(canvas_container,
                                bg=self.theme["canvas_bg"],
-                               relief=tk.FLAT,
-                               borderwidth=1)
+                               relief="solid",
+                               borderwidth=1,
+                               highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True)
 
         # Draw initial grid
@@ -114,67 +324,91 @@ class EnhancedClosestPairVisualizer:
         self.canvas.bind("<Motion>", self.show_mouse_position)
 
         # Right panel - Details
-        right_panel = ttk.Frame(main_frame, relief=tk.RIDGE, borderwidth=2, padding="5", width=250)
-        right_panel.grid(row=1, column=2, sticky=(tk.N, tk.S, tk.E), padx=(5, 0))
+        right_panel = ttk.Frame(main_frame, style="Panel.TFrame", padding="10", width=250)
+        right_panel.grid(row=1, column=2, sticky=(tk.N, tk.S, tk.E), padx=(10, 0))
         right_panel.grid_propagate(False)
         self.create_details_panel(right_panel)
 
         # Footer
-        footer_frame = ttk.Frame(main_frame)
-        footer_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(5, 0))
+        footer_frame = ttk.Frame(main_frame, style="Header.TFrame")
+        footer_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(10, 0))
         self.create_footer(footer_frame)
 
     def create_point_controls(self, parent):
-        frame = ttk.LabelFrame(parent, text="Point Controls", padding="10")
-        frame.pack(fill=tk.X, pady=(0, 10))
+        frame = ttk.LabelFrame(parent, text="Point Controls",
+                              style="Panel.TLabelframe", padding="10")
+        frame.pack(fill=tk.X, pady=(0, 15))
 
         # Add points buttons
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(fill=tk.X, pady=5)
-        ttk.Button(btn_frame, text="Add Point",
-                  command=self.add_random_point).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(btn_frame, text="Random Set",
-                  command=self.add_random_points).pack(side=tk.LEFT)
+        
+        # Use custom rounded buttons or styled buttons
+        StyledButton(btn_frame, text="Add Point",
+                    command=self.add_random_point,
+                    style_name="Accent").pack(side=tk.LEFT, padx=(0, 5), fill=tk.X, expand=True)
+        
+        StyledButton(btn_frame, text="Random Set",
+                    command=self.add_random_points,
+                    style_name="Info").pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         # Point count slider
         slider_frame = ttk.Frame(frame)
         slider_frame.pack(fill=tk.X, pady=10)
-        ttk.Label(slider_frame, text="Points:").pack(side=tk.LEFT)
+        
+        ttk.Label(slider_frame, text="Points:",
+                 foreground=self.theme["fg"]).pack(side=tk.LEFT)
+        
         self.point_count_var = tk.IntVar(value=15)
-        ttk.Scale(slider_frame, from_=5, to=50,
-                 orient=tk.HORIZONTAL,
-                 variable=self.point_count_var).pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(10, 0))
+        point_slider = ttk.Scale(slider_frame, from_=5, to=50,
+                                orient=tk.HORIZONTAL,
+                                variable=self.point_count_var)
+        point_slider.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(10, 0))
 
         # Clear button
-        ttk.Button(frame, text="Clear All",
-                  command=self.clear_points).pack(fill=tk.X, pady=5)
+        StyledButton(frame, text="Clear All",
+                    command=self.clear_points,
+                    style_name="Danger").pack(fill=tk.X, pady=5)
 
         # Instructions
-        instr_text = "Instructions:\n• Click to add points\n• Drag to add multiple\n• At least 2 points needed"
-        ttk.Label(frame, text=instr_text,
-                 justify=tk.LEFT).pack(fill=tk.X, pady=(10, 0))
+        instr_text = """Instructions:
+• Click to add points
+• Drag to add multiple
+• At least 2 points needed"""
+        
+        instr_label = ttk.Label(frame, text=instr_text,
+                               justify=tk.LEFT,
+                               foreground="#7f8c8d",
+                               font=("Arial", 9))
+        instr_label.pack(fill=tk.X, pady=(10, 0))
 
     def create_visualization_controls(self, parent):
-        frame = ttk.LabelFrame(parent, text="Visualization", padding="10")
-        frame.pack(fill=tk.X, pady=(0, 10))
+        frame = ttk.LabelFrame(parent, text="Visualization",
+                              style="Panel.TLabelframe", padding="10")
+        frame.pack(fill=tk.X, pady=(0, 15))
 
-        # Control buttons
+        # Main control buttons
         control_grid = ttk.Frame(frame)
         control_grid.pack(fill=tk.X, pady=5)
         
-        self.start_btn = ttk.Button(control_grid, text="Start",
-                                   command=self.start_visualization)
+        self.start_btn = StyledButton(control_grid, text="Start",
+                                     command=self.start_visualization,
+                                     style_name="Success")
         self.start_btn.grid(row=0, column=0, padx=2, pady=2, sticky=tk.EW)
         
-        self.pause_btn = ttk.Button(control_grid, text="Pause",
-                                   command=self.toggle_pause,
-                                   state=tk.DISABLED)
+        self.pause_btn = StyledButton(control_grid, text="Pause",
+                                     command=self.toggle_pause,
+                                     state=tk.DISABLED,
+                                     style_name="Warning")
         self.pause_btn.grid(row=0, column=1, padx=2, pady=2, sticky=tk.EW)
         
-        ttk.Button(control_grid, text="Step",
-                  command=self.step_forward).grid(row=1, column=0, padx=2, pady=2, sticky=tk.EW)
-        ttk.Button(control_grid, text="Back",
-                  command=self.step_backward).grid(row=1, column=1, padx=2, pady=2, sticky=tk.EW)
+        StyledButton(control_grid, text="Step",
+                    command=self.step_forward,
+                    style_name="Accent").grid(row=1, column=0, padx=2, pady=2, sticky=tk.EW)
+        
+        StyledButton(control_grid, text="Back",
+                    command=self.step_backward,
+                    style_name="Accent").grid(row=1, column=1, padx=2, pady=2, sticky=tk.EW)
         
         control_grid.columnconfigure(0, weight=1)
         control_grid.columnconfigure(1, weight=1)
@@ -182,19 +416,25 @@ class EnhancedClosestPairVisualizer:
         # Speed control
         speed_frame = ttk.Frame(frame)
         speed_frame.pack(fill=tk.X, pady=10)
-        ttk.Label(speed_frame, text="Speed:").pack(side=tk.LEFT)
+        
+        ttk.Label(speed_frame, text="Speed:",
+                 foreground=self.theme["fg"]).pack(side=tk.LEFT)
+        
         self.speed_var = tk.IntVar(value=200)
-        ttk.Scale(speed_frame, from_=50, to=1000,
-                 orient=tk.HORIZONTAL,
-                 variable=self.speed_var,
-                 command=self.update_speed).pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(10, 0))
+        speed_slider = ttk.Scale(speed_frame, from_=50, to=1000,
+                                orient=tk.HORIZONTAL,
+                                variable=self.speed_var,
+                                command=self.update_speed)
+        speed_slider.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(10, 0))
 
         # Instant solve button
-        ttk.Button(frame, text="Solve Instantly",
-                  command=self.find_closest_no_visual).pack(fill=tk.X, pady=(5, 0))
+        StyledButton(frame, text="Solve Instantly",
+                    command=self.find_closest_no_visual,
+                    style_name="Info").pack(fill=tk.X, pady=(5, 0))
 
     def create_algorithm_info(self, parent):
-        frame = ttk.LabelFrame(parent, text="Algorithm Info", padding="10")
+        frame = ttk.LabelFrame(parent, text="Algorithm Info",
+                              style="Panel.TLabelframe", padding="10")
         frame.pack(fill=tk.BOTH, expand=True)
         
         info_text = """Divide & Conquer Steps:
@@ -207,34 +447,48 @@ Complexity:
 • Brute Force: O(n²)
 • D&C: O(n log n)"""
         
-        ttk.Label(frame, text=info_text,
-                 justify=tk.LEFT).pack(fill=tk.BOTH, expand=True)
+        info_label = ttk.Label(frame, text=info_text,
+                              justify=tk.LEFT,
+                              foreground=self.theme["fg"],
+                              font=("Arial", 10))
+        info_label.pack(fill=tk.BOTH, expand=True)
 
     def create_details_panel(self, parent):
         # Current step info
-        step_frame = ttk.LabelFrame(parent, text="Current Step", padding="10")
-        step_frame.pack(fill=tk.X, pady=(0, 10))
+        step_frame = ttk.LabelFrame(parent, text="Current Step",
+                                   style="Panel.TLabelframe", padding="10")
+        step_frame.pack(fill=tk.X, pady=(0, 15))
+        
         self.step_info = tk.StringVar(value="Ready")
-        ttk.Label(step_frame, textvariable=self.step_info,
-                 wraplength=230,
-                 justify=tk.LEFT).pack(fill=tk.X)
+        step_label = ttk.Label(step_frame, textvariable=self.step_info,
+                              wraplength=230,
+                              justify=tk.LEFT,
+                              foreground=self.theme["success"],
+                              font=("Arial", 10))
+        step_label.pack(fill=tk.X)
 
         # Statistics
-        stats_frame = ttk.LabelFrame(parent, text="Statistics", padding="10")
-        stats_frame.pack(fill=tk.X, pady=(0, 10))
+        stats_frame = ttk.LabelFrame(parent, text="Statistics",
+                                    style="Panel.TLabelframe", padding="10")
+        stats_frame.pack(fill=tk.X, pady=(0, 15))
+        
         self.stats_text = tk.StringVar()
         self.stats_text.set("Points: 0\nClosest Distance: N/A")
-        ttk.Label(stats_frame, textvariable=self.stats_text,
-                 justify=tk.LEFT).pack(fill=tk.X)
+        stats_label = ttk.Label(stats_frame, textvariable=self.stats_text,
+                               justify=tk.LEFT,
+                               foreground=self.theme["info"],
+                               font=("Arial", 10))
+        stats_label.pack(fill=tk.X)
 
         # Legend
-        legend_frame = ttk.LabelFrame(parent, text="Legend", padding="10")
+        legend_frame = ttk.LabelFrame(parent, text="Legend",
+                                     style="Panel.TLabelframe", padding="10")
         legend_frame.pack(fill=tk.X)
         
         legend_items = [
-            ("○", "Regular Point", self.theme["accent"]),
+            ("●", "Regular Point", self.theme["accent"]),
             ("●", "Closest Pair", self.theme["danger"]),
-            ("──", "Division Line", self.theme["success"]),
+            ("——", "Division Line", self.theme["success"]),
             ("▆", "Strip Area", self.theme["warning"]),
             ("···", "Comparison", "#666666"),
         ]
@@ -242,30 +496,46 @@ Complexity:
         for symbol, text, color in legend_items:
             item_frame = ttk.Frame(legend_frame)
             item_frame.pack(fill=tk.X, pady=2)
-            tk.Label(item_frame, text=symbol, fg=color,
-                    bg=self.theme["bg"]).pack(side=tk.LEFT, padx=(0, 10))
-            ttk.Label(item_frame, text=text).pack(side=tk.LEFT)
+            
+            color_label = tk.Label(item_frame, text=symbol, fg=color,
+                                  bg=self.theme["panel_bg"],
+                                  font=("Arial", 12))
+            color_label.pack(side=tk.LEFT, padx=(0, 10))
+            
+            ttk.Label(item_frame, text=text,
+                     foreground=self.theme["fg"]).pack(side=tk.LEFT)
 
     def create_footer(self, parent):
         # Progress bar
         progress_frame = ttk.Frame(parent)
         progress_frame.pack(fill=tk.X, pady=5)
-        ttk.Label(progress_frame, text="Progress:").pack(side=tk.LEFT)
+        
+        ttk.Label(progress_frame, text="Progress:",
+                 foreground=self.theme["fg"]).pack(side=tk.LEFT)
+        
         self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(progress_frame,
                                            variable=self.progress_var,
-                                           maximum=100)
+                                           maximum=100,
+                                           style="Custom.Horizontal.TProgressbar")
         self.progress_bar.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(10, 0))
 
         # Status message
         self.status_var = tk.StringVar(value="Ready")
-        ttk.Label(parent, textvariable=self.status_var).pack(fill=tk.X, pady=(5, 0))
+        status_label = ttk.Label(parent, textvariable=self.status_var,
+                                foreground=self.theme["accent"],
+                                font=("Arial", 10))
+        status_label.pack(fill=tk.X, pady=(5, 0))
 
         # Performance info
         perf_frame = ttk.Frame(parent)
         perf_frame.pack(fill=tk.X, pady=(5, 0))
+        
         self.perf_text = tk.StringVar(value="Comparisons: 0 | Time: 0ms")
-        ttk.Label(perf_frame, textvariable=self.perf_text).pack(side=tk.RIGHT)
+        perf_label = ttk.Label(perf_frame, textvariable=self.perf_text,
+                              foreground="#7f8c8d",
+                              font=("Arial", 9))
+        perf_label.pack(side=tk.RIGHT)
 
     def draw_canvas_grid(self):
         """Draw a simple grid on the canvas"""
@@ -340,10 +610,14 @@ Complexity:
 
     def draw_point(self, point, color, size=6, tag="point"):
         x, y = point.x, point.y
-        # Draw point
+        # Draw point with a subtle shadow effect
+        self.canvas.create_oval(x - size - 1, y - size - 1,
+                               x + size + 1, y + size + 1,
+                               fill="#e0e0e0", outline="", tags=tag)
+        # Draw main point
         self.canvas.create_oval(x - size, y - size,
                                x + size, y + size,
-                               fill=color, outline="black",
+                               fill=color, outline=color,
                                width=1, tags=tag)
         
         # Draw point ID if not too many points
@@ -351,7 +625,7 @@ Complexity:
             self.canvas.create_text(x, y - size - 8,
                                    text=f"P{point.id}",
                                    fill=color,
-                                   font=("Arial", 8),
+                                   font=("Arial", 8, "bold"),
                                    tags=tag)
 
     def clear_points(self):
