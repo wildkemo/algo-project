@@ -4,22 +4,11 @@ import math
 import time
 from tkinter import font as tkfont
 
-class EnhancedPoint:
-    def __init__(self, x, y, id=None):
-        self.x = x
-        self.y = y
-        self.id = id
-
-    def distance_to(self, other):
-        return math.sqrt((self.x - other.x)**2 + (self.y - other.y)**2)
-
-    def __repr__(self):
-        return f"({self.x:.1f}, {self.y:.1f})"
-
 class RoundedButton(tk.Canvas):
-    def __init__(self, parent, text, command, width=100, height=30, radius=8,
-                 bg_color="#0066cc", hover_color="#0055aa", text_color="white",
-                 border_width=0, font=("Arial", 10), **kwargs):
+    """Custom rounded button with hover effects"""
+    def __init__(self, parent, text, command, width=100, height=35, radius=8,
+                 bg_color="#3498db", hover_color="#2980b9", text_color="white",
+                 border_width=0, font=("Arial", 10, "bold"), **kwargs):
         super().__init__(parent, width=width, height=height, 
                         highlightthickness=0, **kwargs)
         self.command = command
@@ -33,6 +22,7 @@ class RoundedButton(tk.Canvas):
         self.width = width
         self.height = height
         
+        # Bind events
         self.bind("<Enter>", self.on_enter)
         self.bind("<Leave>", self.on_leave)
         self.bind("<Button-1>", self.on_click)
@@ -43,26 +33,32 @@ class RoundedButton(tk.Canvas):
         self.draw_button()
     
     def draw_button(self):
+        """Draw the rounded button with current state"""
         self.delete("all")
         
-        # Draw rounded rectangle
+        # Determine button color based on state
         if self.is_pressed:
             color = self.hover_color
         elif self.is_hovered:
             color = self.hover_color
         else:
             color = self.bg_color
-            
-        # Create rounded rectangle
-        self.create_round_rect(0, 0, self.width, self.height, 
-                              self.radius, fill=color, outline=color)
         
-        # Add text
-        self.create_text(self.width//2, self.height//2, 
+        # Create rounded rectangle
+        self.create_rounded_rect(2, 2, self.width-2, self.height-2, 
+                               self.radius, fill=color, outline=color)
+        
+        # Add text with subtle shadow effect (using hex color for shadow)
+        shadow_color = "#333333"  # Dark gray for shadow
+        self.create_text(self.width//2 + 1, self.height//2 + 1,
+                        text=self.text, fill=shadow_color,
+                        font=self.font, tags="text_shadow")
+        self.create_text(self.width//2, self.height//2,
                         text=self.text, fill=self.text_color,
                         font=self.font, tags="text")
     
-    def create_round_rect(self, x1, y1, x2, y2, radius, **kwargs):
+    def create_rounded_rect(self, x1, y1, x2, y2, radius, **kwargs):
+        """Create a rounded rectangle"""
         points = [
             x1+radius, y1,
             x2-radius, y1,
@@ -81,28 +77,45 @@ class RoundedButton(tk.Canvas):
         return self.create_polygon(points, smooth=True, **kwargs)
     
     def on_enter(self, event):
+        """Handle mouse enter event"""
         self.is_hovered = True
         self.draw_button()
+        self.config(cursor="hand2")
     
     def on_leave(self, event):
+        """Handle mouse leave event"""
         self.is_hovered = False
         self.is_pressed = False
         self.draw_button()
+        self.config(cursor="")
     
     def on_click(self, event):
+        """Handle mouse click event"""
         self.is_pressed = True
         self.draw_button()
     
     def on_release(self, event):
+        """Handle mouse release event"""
         self.is_pressed = False
         self.draw_button()
         if self.command:
             self.command()
 
-class StyledButton(ttk.Button):
-    def __init__(self, parent, text, command, style_name="", **kwargs):
-        super().__init__(parent, text=text, command=command, **kwargs)
-        self.configure(style=f"{style_name}.TButton" if style_name else "TButton")
+class EnhancedPoint:
+    def __init__(self, x, y, id=None):
+        self.x = x
+        self.y = y
+        self.id = id
+
+    def distance_to(self, other):
+        return math.sqrt((self.x - other.x)**2 + (self.y - other.y)**2)
+    
+    def is_same_location(self, other, tolerance=5):
+        """Check if two points are at the same location within tolerance"""
+        return abs(self.x - other.x) < tolerance and abs(self.y - other.y) < tolerance
+
+    def __repr__(self):
+        return f"({self.x:.1f}, {self.y:.1f})"
 
 class EnhancedClosestPairVisualizer:
     def __init__(self, root):
@@ -129,7 +142,8 @@ class EnhancedClosestPairVisualizer:
             "canvas_bg": "#ffffff",
             "grid": "#e8edf2",
             "panel_bg": "#ffffff",
-            "border": "#dfe6e9"
+            "border": "#dfe6e9",
+            "shadow": "#cccccc"
         }
 
         # Points storage
@@ -137,6 +151,7 @@ class EnhancedClosestPairVisualizer:
         self.closest_pair = (None, None)
         self.min_distance = float('inf')
         self.point_counter = 0
+        self.min_distance_between_points = 15  # Minimum distance between points
 
         # Visualization control
         self.visualization_speed = 200
@@ -155,17 +170,17 @@ class EnhancedClosestPairVisualizer:
     def setup_styles(self):
         style = ttk.Style()
         
-        # Configure button styles with rounded corners
-        style.configure("Accent.TButton",
+        # Configure custom button styles with rounded corners
+        style.configure("Rounded.TButton",
                        background=self.theme["accent"],
                        foreground="white",
                        borderwidth=0,
                        focuscolor="none",
                        focusthickness=0,
                        font=("Arial", 10, "bold"),
-                       padding=8,
+                       padding=10,
                        relief="flat")
-        style.map("Accent.TButton",
+        style.map("Rounded.TButton",
                  background=[('active', self.theme["accent_hover"]),
                             ('pressed', self.theme["accent_hover"]),
                             ('!disabled', self.theme["accent"])],
@@ -173,57 +188,61 @@ class EnhancedClosestPairVisualizer:
                  relief=[('pressed', 'sunken'),
                         ('!pressed', 'flat')])
         
-        style.configure("Success.TButton",
+        # Success button style
+        style.configure("RoundedSuccess.TButton",
                        background=self.theme["success"],
                        foreground="white",
                        borderwidth=0,
                        focuscolor="none",
                        font=("Arial", 10, "bold"),
-                       padding=8,
+                       padding=10,
                        relief="flat")
-        style.map("Success.TButton",
+        style.map("RoundedSuccess.TButton",
                  background=[('active', self.theme["success_hover"]),
                             ('pressed', self.theme["success_hover"]),
                             ('!disabled', self.theme["success"])],
                  foreground=[('!disabled', 'white')])
         
-        style.configure("Warning.TButton",
+        # Warning button style
+        style.configure("RoundedWarning.TButton",
                        background=self.theme["warning"],
                        foreground="white",
                        borderwidth=0,
                        focuscolor="none",
                        font=("Arial", 10, "bold"),
-                       padding=8,
+                       padding=10,
                        relief="flat")
-        style.map("Warning.TButton",
+        style.map("RoundedWarning.TButton",
                  background=[('active', self.theme["warning_hover"]),
                             ('pressed', self.theme["warning_hover"]),
                             ('!disabled', self.theme["warning"])],
                  foreground=[('!disabled', 'white')])
         
-        style.configure("Danger.TButton",
+        # Danger button style
+        style.configure("RoundedDanger.TButton",
                        background=self.theme["danger"],
                        foreground="white",
                        borderwidth=0,
                        focuscolor="none",
                        font=("Arial", 10, "bold"),
-                       padding=8,
+                       padding=10,
                        relief="flat")
-        style.map("Danger.TButton",
+        style.map("RoundedDanger.TButton",
                  background=[('active', self.theme["danger_hover"]),
                             ('pressed', self.theme["danger_hover"]),
                             ('!disabled', self.theme["danger"])],
                  foreground=[('!disabled', 'white')])
         
-        style.configure("Info.TButton",
+        # Info button style
+        style.configure("RoundedInfo.TButton",
                        background=self.theme["info"],
                        foreground="white",
                        borderwidth=0,
                        focuscolor="none",
                        font=("Arial", 10, "bold"),
-                       padding=8,
+                       padding=10,
                        relief="flat")
-        style.map("Info.TButton",
+        style.map("RoundedInfo.TButton",
                  background=[('active', self.theme["info_hover"]),
                             ('pressed', self.theme["info_hover"]),
                             ('!disabled', self.theme["info"])],
@@ -250,7 +269,9 @@ class EnhancedClosestPairVisualizer:
                        background=self.theme["accent"],
                        bordercolor=self.theme["border"],
                        lightcolor=self.theme["accent_hover"],
-                       borderwidth=1)
+                       borderwidth=1,
+                       troughrelief="flat",
+                       relief="flat")
 
     def setup_ui(self):
         # Configure root background
@@ -343,14 +364,20 @@ class EnhancedClosestPairVisualizer:
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(fill=tk.X, pady=5)
         
-        # Use custom rounded buttons or styled buttons
-        StyledButton(btn_frame, text="Add Point",
-                    command=self.add_random_point,
-                    style_name="Accent").pack(side=tk.LEFT, padx=(0, 5), fill=tk.X, expand=True)
+        # Create custom rounded buttons
+        self.add_point_btn = RoundedButton(btn_frame, text="Add Point",
+                                          command=self.add_random_point,
+                                          width=110, height=35, radius=8,
+                                          bg_color=self.theme["accent"],
+                                          hover_color=self.theme["accent_hover"])
+        self.add_point_btn.pack(side=tk.LEFT, padx=(0, 5))
         
-        StyledButton(btn_frame, text="Random Set",
-                    command=self.add_random_points,
-                    style_name="Info").pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.random_set_btn = RoundedButton(btn_frame, text="Random Set",
+                                           command=self.add_random_points,
+                                           width=110, height=35, radius=8,
+                                           bg_color=self.theme["info"],
+                                           hover_color=self.theme["info_hover"])
+        self.random_set_btn.pack(side=tk.LEFT)
 
         # Point count slider
         slider_frame = ttk.Frame(frame)
@@ -366,15 +393,19 @@ class EnhancedClosestPairVisualizer:
         point_slider.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(10, 0))
 
         # Clear button
-        StyledButton(frame, text="Clear All",
-                    command=self.clear_points,
-                    style_name="Danger").pack(fill=tk.X, pady=5)
+        self.clear_btn = RoundedButton(frame, text="Clear All",
+                                      command=self.clear_points,
+                                      width=235, height=35, radius=8,
+                                      bg_color=self.theme["danger"],
+                                      hover_color=self.theme["danger_hover"])
+        self.clear_btn.pack(fill=tk.X, pady=5)
 
         # Instructions
         instr_text = """Instructions:
 • Click to add points
 • Drag to add multiple
-• At least 2 points needed"""
+• Minimum 2 points needed
+• Points must be at least 15px apart"""
         
         instr_label = ttk.Label(frame, text=instr_text,
                                justify=tk.LEFT,
@@ -391,24 +422,33 @@ class EnhancedClosestPairVisualizer:
         control_grid = ttk.Frame(frame)
         control_grid.pack(fill=tk.X, pady=5)
         
-        self.start_btn = StyledButton(control_grid, text="Start",
-                                     command=self.start_visualization,
-                                     style_name="Success")
+        self.start_btn = RoundedButton(control_grid, text="Start",
+                                      command=self.start_visualization,
+                                      width=75, height=35, radius=8,
+                                      bg_color=self.theme["success"],
+                                      hover_color=self.theme["success_hover"])
         self.start_btn.grid(row=0, column=0, padx=2, pady=2, sticky=tk.EW)
         
-        self.pause_btn = StyledButton(control_grid, text="Pause",
-                                     command=self.toggle_pause,
-                                     state=tk.DISABLED,
-                                     style_name="Warning")
+        self.pause_btn = RoundedButton(control_grid, text="Pause",
+                                      command=self.toggle_pause,
+                                      width=75, height=35, radius=8,
+                                      bg_color=self.theme["warning"],
+                                      hover_color=self.theme["warning_hover"])
         self.pause_btn.grid(row=0, column=1, padx=2, pady=2, sticky=tk.EW)
         
-        StyledButton(control_grid, text="Step",
-                    command=self.step_forward,
-                    style_name="Accent").grid(row=1, column=0, padx=2, pady=2, sticky=tk.EW)
+        self.step_btn = RoundedButton(control_grid, text="Step",
+                                     command=self.step_forward,
+                                     width=75, height=35, radius=8,
+                                     bg_color=self.theme["accent"],
+                                     hover_color=self.theme["accent_hover"])
+        self.step_btn.grid(row=1, column=0, padx=2, pady=2, sticky=tk.EW)
         
-        StyledButton(control_grid, text="Back",
-                    command=self.step_backward,
-                    style_name="Accent").grid(row=1, column=1, padx=2, pady=2, sticky=tk.EW)
+        self.back_btn = RoundedButton(control_grid, text="Back",
+                                     command=self.step_backward,
+                                     width=75, height=35, radius=8,
+                                     bg_color=self.theme["accent"],
+                                     hover_color=self.theme["accent_hover"])
+        self.back_btn.grid(row=1, column=1, padx=2, pady=2, sticky=tk.EW)
         
         control_grid.columnconfigure(0, weight=1)
         control_grid.columnconfigure(1, weight=1)
@@ -428,9 +468,12 @@ class EnhancedClosestPairVisualizer:
         speed_slider.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(10, 0))
 
         # Instant solve button
-        StyledButton(frame, text="Solve Instantly",
-                    command=self.find_closest_no_visual,
-                    style_name="Info").pack(fill=tk.X, pady=(5, 0))
+        self.solve_btn = RoundedButton(frame, text="Solve Instantly",
+                                      command=self.find_closest_no_visual,
+                                      width=235, height=35, radius=8,
+                                      bg_color=self.theme["info"],
+                                      hover_color=self.theme["info_hover"])
+        self.solve_btn.pack(fill=tk.X, pady=(5, 0))
 
     def create_algorithm_info(self, parent):
         frame = ttk.LabelFrame(parent, text="Algorithm Info",
@@ -553,64 +596,151 @@ Complexity:
                                    fill=self.theme["grid"],
                                    width=0.5, tags="grid")
 
+    def is_point_too_close(self, x, y):
+        """Check if a new point is too close to existing points"""
+        for point in self.points:
+            distance = math.sqrt((point.x - x)**2 + (point.y - y)**2)
+            if distance < self.min_distance_between_points:
+                return True, point
+        return False, None
+
     def add_point(self, event):
         if self.is_visualizing and not self.is_paused:
             return
-            
+        
+        # Check if point is too close to existing points
+        too_close, existing_point = self.is_point_too_close(event.x, event.y)
+        if too_close:
+            # Show warning message
+            self.canvas.create_text(event.x, event.y - 20,
+                                  text="Too close!",
+                                  fill=self.theme["danger"],
+                                  font=("Arial", 10, "bold"),
+                                  tags="warning")
+            self.canvas.after(1000, lambda: self.canvas.delete("warning"))
+            self.status_var.set(f"Point too close to P{existing_point.id}!")
+            return
+        
         self.point_counter += 1
         point = EnhancedPoint(event.x, event.y, self.point_counter)
         self.points.append(point)
         
-        # Simple point drawing
-        self.draw_point(point, self.theme["accent"])
+        # Draw point with animation
+        self.animate_point_creation(point)
         self.update_stats()
         self.canvas_status.config(text=f"Point {self.point_counter} at ({event.x}, {event.y})")
+        self.status_var.set(f"Added point P{self.point_counter}")
 
     def add_point_drag(self, event):
         if self.is_visualizing:
             return
-            
-        # Add point with spacing
+        
+        # Add point with spacing and duplicate prevention
         if len(self.points) == 0 or (abs(event.x - self.points[-1].x) > 10 or abs(event.y - self.points[-1].y) > 10):
+            # Check if point is too close to existing points
+            too_close, existing_point = self.is_point_too_close(event.x, event.y)
+            if too_close:
+                return
             self.add_point(event)
+
+    def animate_point_creation(self, point):
+        """Animate point appearance with subtle effect"""
+        color = self.theme["accent"]
+        sizes = [3, 6, 8, 6]  # Growing then settling
+        
+        # Store the final drawing tag
+        final_tag = f"point_{point.id}"
+        
+        for size in sizes:
+            # Clear any previous animation for this point
+            self.canvas.delete(f"anim_{point.id}")
+            # Draw temporary animation point
+            self.draw_point_animation(point, color, size, f"anim_{point.id}")
+            self.canvas.update()
+            time.sleep(0.03)
+        
+        # Clear the animation and draw the final point
+        self.canvas.delete(f"anim_{point.id}")
+        self.draw_point(point, color, 6, final_tag)
+
+    def draw_point_animation(self, point, color, size, tag):
+        """Draw a point for animation purposes"""
+        x, y = point.x, point.y
+        # Draw main point for animation
+        self.canvas.create_oval(x - size, y - size,
+                               x + size, y + size,
+                               fill=color, outline=color,
+                               width=1, tags=tag)
 
     def add_random_point(self):
         canvas_width = self.canvas.winfo_width() or 700
         canvas_height = self.canvas.winfo_height() or 500
-        x = 50 + (canvas_width - 100) * (0.1 + 0.8 * (hash(str(time.time())) % 1000) / 1000)
-        y = 50 + (canvas_height - 100) * (0.1 + 0.8 * (hash(str(time.time() + 1000)) % 1000) / 1000)
         
-        self.point_counter += 1
-        point = EnhancedPoint(x, y, self.point_counter)
-        self.points.append(point)
-        self.draw_point(point, self.theme["accent"])
-        self.update_stats()
-        self.canvas_status.config(text=f"Random point {self.point_counter} added")
+        # Try to find a valid position (max 100 attempts)
+        for attempt in range(100):
+            x = 50 + (canvas_width - 100) * (0.1 + 0.8 * ((hash(str(time.time() + attempt)) % 1000) / 1000))
+            y = 50 + (canvas_height - 100) * (0.1 + 0.8 * ((hash(str(time.time() + attempt + 1000)) % 1000) / 1000))
+            
+            # Check if point is too close to existing points
+            too_close, _ = self.is_point_too_close(x, y)
+            if not too_close:
+                self.point_counter += 1
+                point = EnhancedPoint(x, y, self.point_counter)
+                self.points.append(point)
+                self.draw_point(point, self.theme["accent"], 6)
+                self.update_stats()
+                self.canvas_status.config(text=f"Random point {self.point_counter} added")
+                self.status_var.set(f"Added random point P{self.point_counter}")
+                return
+        
+        # If we couldn't find a valid position
+        self.status_var.set("Could not find valid position for new point")
+        self.canvas_status.config(text="Canvas might be too crowded")
 
     def add_random_points(self):
         count = self.point_count_var.get()
         
         if self.is_visualizing:
             return
-            
+        
         self.clear_points()
         canvas_width = self.canvas.winfo_width() or 700
         canvas_height = self.canvas.winfo_height() or 500
         
-        for i in range(count):
-            x = 50 + (canvas_width - 100) * (0.1 + 0.8 * (i / count))
-            y = 50 + (canvas_height - 100) * (0.1 + 0.8 * ((hash(str(i)) % 1000) / 1000))
+        points_added = 0
+        max_attempts = count * 10  # Maximum attempts to place points
+        
+        for attempt in range(max_attempts):
+            if points_added >= count:
+                break
+                
+            # Generate point with some randomness
+            spacing_factor = points_added / max(count, 1)
+            x = 50 + (canvas_width - 100) * (0.1 + 0.8 * (spacing_factor + 0.2 * ((hash(str(attempt)) % 1000) / 1000)))
+            y = 50 + (canvas_height - 100) * (0.1 + 0.8 * ((hash(str(attempt + 1000)) % 1000) / 1000))
             
-            self.point_counter += 1
-            point = EnhancedPoint(x, y, self.point_counter)
-            self.points.append(point)
-            self.draw_point(point, self.theme["accent"])
+            # Check if point is too close to existing points
+            too_close, _ = self.is_point_too_close(x, y)
+            if not too_close:
+                self.point_counter += 1
+                point = EnhancedPoint(x, y, self.point_counter)
+                self.points.append(point)
+                self.draw_point(point, self.theme["accent"])
+                points_added += 1
         
         self.update_stats()
+        if points_added < count:
+            self.status_var.set(f"Added {points_added} points (some positions unavailable)")
+        else:
+            self.status_var.set(f"Added {count} random points")
 
-    def draw_point(self, point, color, size=6, tag="point"):
+    def draw_point(self, point, color, size=6, tag=None):
+        """Draw a point on the canvas"""
+        if tag is None:
+            tag = f"point_{point.id}"
         x, y = point.x, point.y
-        # Draw point with a subtle shadow effect
+        
+        # Draw point with shadow effect
         self.canvas.create_oval(x - size - 1, y - size - 1,
                                x + size + 1, y + size + 1,
                                fill="#e0e0e0", outline="", tags=tag)
@@ -634,9 +764,15 @@ Complexity:
         self.current_step = 0
         self.visualization_steps = []
         
-        self.start_btn.config(state=tk.NORMAL)
-        self.pause_btn.config(state=tk.DISABLED)
-        self.pause_btn.config(text="Pause")
+        # Reset button states
+        self.start_btn.is_hovered = False
+        self.start_btn.is_pressed = False
+        self.start_btn.draw_button()
+        
+        self.pause_btn.is_hovered = False
+        self.pause_btn.is_pressed = False
+        self.pause_btn.draw_button()
+        
         self.progress_var.set(0)
         self.step_info.set("Ready")
         
@@ -686,8 +822,14 @@ Complexity:
         self.visualization_steps = []
         self.current_step = 0
         
-        self.start_btn.config(state=tk.DISABLED)
-        self.pause_btn.config(state=tk.NORMAL, text="Pause")
+        # Update button states
+        self.start_btn.is_hovered = False
+        self.start_btn.is_pressed = True
+        self.start_btn.draw_button()
+        
+        self.pause_btn.is_hovered = False
+        self.pause_btn.is_pressed = False
+        self.pause_btn.draw_button()
         
         # Clear previous visualization
         self.canvas.delete("line")
@@ -868,8 +1010,10 @@ Complexity:
             self.root.after(self.visualization_speed, self.run_visualization)
         else:
             self.is_visualizing = False
-            self.start_btn.config(state=tk.NORMAL)
-            self.pause_btn.config(state=tk.DISABLED)
+            self.start_btn.is_pressed = False
+            self.start_btn.draw_button()
+            self.pause_btn.is_pressed = False
+            self.pause_btn.draw_button()
             self.status_var.set("Visualization complete")
             messagebox.showinfo("Complete", f"Algorithm finished!\nClosest distance: {self.min_distance:.2f}")
 
@@ -1058,7 +1202,7 @@ Complexity:
         
         # Draw result
         if self.closest_pair[0] and self.closest_pair[1]:
-            # Draw all points
+            # Draw all points normally
             for point in self.points:
                 if point != self.closest_pair[0] and point != self.closest_pair[1]:
                     self.draw_point(point, self.theme["accent"], 6)
