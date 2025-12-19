@@ -1234,57 +1234,95 @@ Complexity:
         self.perf_text.set(f"Time: {elapsed_time:.1f}ms")
 
     def closest_pair_dc(self, points_x):
-        """Divide and conquer algorithm without visualization - O(n log n)"""
-        def brute_force(points):
-            min_dist = float('inf')
-            closest = (None, None)
-            for i in range(len(points)):
-                for j in range(i+1, len(points)):
-                    dist = points[i].distance_to(points[j])
-                    if dist < min_dist:
-                        min_dist = dist
-                        closest = (points[i], points[j])
-            return min_dist, closest
+    
 
-        def dc_recursive(points_x, points_y):
-            n = len(points_x)
-            if n <= 3:
-                return brute_force(points_x)
+            def brute_force(points):
+                min_dist = float('inf')
+                closest = (None, None)
 
-            mid = n // 2
-            mid_point = points_x[mid]
-            mid_x = mid_point.x
+                i = 0
+                while i < len(points):
+                    j = i + 1
+                    while j < len(points):
+                        dist = points[i].distance_to(points[j])
+                        if dist < min_dist:
+                            min_dist = dist
+                            closest = (points[i], points[j])
+                        j += 1
+                    i += 1
 
-            # Split points_y into left and right based on x-coordinate - O(n)
-            # Use set for O(1) lookup of left points
-            left_set = set(points_x[:mid])
-            left_y = [p for p in points_y if p in left_set]
-            right_y = [p for p in points_y if p not in left_set]
+                return min_dist, closest
 
-            left_min, left_closest = dc_recursive(points_x[:mid], left_y)
-            right_min, right_closest = dc_recursive(points_x[mid:], right_y)
+            def dc_recursive(points_x, points_y):
+                n = len(points_x)
 
-            min_dist = min(left_min, right_min)
-            closest = left_closest if left_min < right_min else right_closest
+                if n <= 3:
+                    return brute_force(points_x)
 
-            # Build strip from y-sorted array - O(n)
-            strip = [p for p in points_y if abs(p.x - mid_point.x) < min_dist]
+                mid = n // 2
+                mid_point = points_x[mid]
 
-            # Check strip - O(n) since we only check up to 7 neighbors per point
-            for i in range(len(strip)):
-                for j in range(i+1, min(i+8, len(strip))):
-                    if strip[j].y - strip[i].y >= min_dist:
-                        break
-                    dist = strip[i].distance_to(strip[j])
-                    if dist < min_dist:
-                        min_dist = dist
-                        closest = (strip[i], strip[j])
+                # build set of left-half points
+                left_set = set()
+                i = 0
+                while i < mid:
+                    left_set.add(points_x[i])
+                    i += 1
 
-            return min_dist, closest
+                # split points_y manually
+                left_y = []
+                right_y = []
 
-        # Pre-sort by y-coordinate once - O(n log n)
-        points_y = sorted(points_x, key=lambda p: p.y)
-        return dc_recursive(points_x, points_y)
+                i = 0
+                while i < len(points_y):
+                    p = points_y[i]
+                    if p in left_set:
+                        left_y.append(p)
+                    else:
+                        right_y.append(p)
+                    i += 1
+
+                left_min, left_closest = dc_recursive(points_x[:mid], left_y)
+                right_min, right_closest = dc_recursive(points_x[mid:], right_y)
+
+                if left_min < right_min:
+                    min_dist = left_min
+                    closest = left_closest
+                else:
+                    min_dist = right_min
+                    closest = right_closest
+
+                # build strip explicitly
+                strip = []
+                i = 0
+                while i < len(points_y):
+                    p = points_y[i]
+                    if abs(p.x - mid_point.x) < min_dist:
+                        strip.append(p)
+                    i += 1
+
+                # check strip neighbors
+                i = 0
+                while i < len(strip):
+                    j = i + 1
+                    while j < len(strip) and j < i + 8:
+                        if strip[j].y - strip[i].y >= min_dist:
+                            break
+
+                        dist = strip[i].distance_to(strip[j])
+                        if dist < min_dist:
+                            min_dist = dist
+                            closest = (strip[i], strip[j])
+
+                        j += 1
+                    i += 1
+
+                return min_dist, closest
+
+            # sort by y once
+            points_y = sorted(points_x, key=lambda p: p.y)
+            return dc_recursive(points_x, points_y)
+
 
 def main():
     root = tk.Tk()
