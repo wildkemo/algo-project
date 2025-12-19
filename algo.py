@@ -850,8 +850,8 @@ Complexity:
         self.root.after(100, self.run_visualization)
 
     def generate_visualization_steps(self, points):
-        """Generate visualization steps"""
-        def dc_with_steps(points_x, depth=0, side=""):
+        """Generate visualization steps - O(n log n)"""
+        def dc_with_steps(points_x, points_y, depth=0, side=""):
             if len(points_x) <= 3:
                 step = {
                     "type": "base_case",
@@ -895,7 +895,8 @@ Complexity:
 
             # Divide step
             mid = len(points_x) // 2
-            mid_x = points_x[mid].x
+            mid_point = points_x[mid]
+            mid_x = mid_point.x
             
             step_divide = {
                 "type": "divide",
@@ -908,9 +909,15 @@ Complexity:
             }
             self.visualization_steps.append(step_divide)
 
+            # Split points_y into left and right based on x-coordinate - O(n)
+            # Use set for O(1) lookup of left points
+            left_set = set(points_x[:mid])
+            left_y = [p for p in points_y if p in left_set]
+            right_y = [p for p in points_y if p not in left_set]
+
             # Recursive calls
-            left_min, left_closest = dc_with_steps(points_x[:mid], depth + 1, "L")
-            right_min, right_closest = dc_with_steps(points_x[mid:], depth + 1, "R")
+            left_min, left_closest = dc_with_steps(points_x[:mid], left_y, depth + 1, "L")
+            right_min, right_closest = dc_with_steps(points_x[mid:], right_y, depth + 1, "R")
 
             # Combine results
             min_dist = min(left_min, right_min)
@@ -926,31 +933,30 @@ Complexity:
             }
             self.visualization_steps.append(step_combine)
 
-            # Check strip
-            strip_points = [p for p in points_x if abs(p.x - mid_x) < min_dist]
-            strip_points_sorted = sorted(strip_points, key=lambda p: p.y)
+            # Check strip - use y-sorted array, no sorting needed - O(n)
+            strip_points = [p for p in points_y if abs(p.x - mid_x) < min_dist]
             
             step_strip = {
                 "type": "strip",
                 "mid_x": mid_x,
                 "strip_width": 2 * min_dist,
-                "strip_points": strip_points_sorted,
+                "strip_points": strip_points,
                 "depth": depth,
                 "side": side,
-                "message": f"Checking strip\nPoints in strip: {len(strip_points_sorted)}"
+                "message": f"Checking strip\nPoints in strip: {len(strip_points)}"
             }
             self.visualization_steps.append(step_strip)
 
-            # Check points in strip
-            for i in range(len(strip_points_sorted)):
-                for j in range(i+1, min(i+8, len(strip_points_sorted))):
-                    if strip_points_sorted[j].y - strip_points_sorted[i].y >= min_dist:
+            # Check points in strip - O(n) since we only check up to 7 neighbors per point
+            for i in range(len(strip_points)):
+                for j in range(i+1, min(i+8, len(strip_points))):
+                    if strip_points[j].y - strip_points[i].y >= min_dist:
                         break
                         
-                    dist = strip_points_sorted[i].distance_to(strip_points_sorted[j])
+                    dist = strip_points[i].distance_to(strip_points[j])
                     step_compare_strip = {
                         "type": "compare_strip",
-                        "points": [strip_points_sorted[i], strip_points_sorted[j]],
+                        "points": [strip_points[i], strip_points[j]],
                         "distance": dist,
                         "depth": depth,
                         "side": side,
@@ -960,7 +966,7 @@ Complexity:
                     
                     if dist < min_dist:
                         min_dist = dist
-                        closest = (strip_points_sorted[i], strip_points_sorted[j])
+                        closest = (strip_points[i], strip_points[j])
 
             step_final = {
                 "type": "final",
@@ -982,9 +988,12 @@ Complexity:
         }
         self.visualization_steps.append(initial_step)
 
+        # Pre-sort by y-coordinate once - O(n log n)
+        points_y = sorted(points, key=lambda p: p.y)
+        
         # Run the algorithm
         start_time = time.time()
-        self.min_distance, self.closest_pair = dc_with_steps(points)
+        self.min_distance, self.closest_pair = dc_with_steps(points, points_y)
         elapsed_time = (time.time() - start_time) * 1000
 
         # Add final summary
@@ -1225,7 +1234,7 @@ Complexity:
         self.perf_text.set(f"Time: {elapsed_time:.1f}ms")
 
     def closest_pair_dc(self, points_x):
-        """Divide and conquer algorithm without visualization"""
+        """Divide and conquer algorithm without visualization - O(n log n)"""
         def brute_force(points):
             min_dist = float('inf')
             closest = (None, None)
@@ -1237,23 +1246,31 @@ Complexity:
                         closest = (points[i], points[j])
             return min_dist, closest
 
-        def dc_recursive(points_x):
+        def dc_recursive(points_x, points_y):
             n = len(points_x)
             if n <= 3:
                 return brute_force(points_x)
 
             mid = n // 2
             mid_point = points_x[mid]
+            mid_x = mid_point.x
 
-            left_min, left_closest = dc_recursive(points_x[:mid])
-            right_min, right_closest = dc_recursive(points_x[mid:])
+            # Split points_y into left and right based on x-coordinate - O(n)
+            # Use set for O(1) lookup of left points
+            left_set = set(points_x[:mid])
+            left_y = [p for p in points_y if p in left_set]
+            right_y = [p for p in points_y if p not in left_set]
+
+            left_min, left_closest = dc_recursive(points_x[:mid], left_y)
+            right_min, right_closest = dc_recursive(points_x[mid:], right_y)
 
             min_dist = min(left_min, right_min)
             closest = left_closest if left_min < right_min else right_closest
 
-            strip = [p for p in points_x if abs(p.x - mid_point.x) < min_dist]
-            strip.sort(key=lambda p: p.y)
+            # Build strip from y-sorted array - O(n)
+            strip = [p for p in points_y if abs(p.x - mid_point.x) < min_dist]
 
+            # Check strip - O(n) since we only check up to 7 neighbors per point
             for i in range(len(strip)):
                 for j in range(i+1, min(i+8, len(strip))):
                     if strip[j].y - strip[i].y >= min_dist:
@@ -1265,7 +1282,9 @@ Complexity:
 
             return min_dist, closest
 
-        return dc_recursive(points_x)
+        # Pre-sort by y-coordinate once - O(n log n)
+        points_y = sorted(points_x, key=lambda p: p.y)
+        return dc_recursive(points_x, points_y)
 
 def main():
     root = tk.Tk()
